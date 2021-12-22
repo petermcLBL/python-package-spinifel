@@ -22,7 +22,7 @@ def fft(src, opts={}):
         problem = DftProblem(src.size, SW_FORWARD)
         solver = DftSolver(problem)
         _solver_cache[ckey] = solver
-    result = solver.solve(complexify1(src))
+    result = solver.solve(src)
     return result
 
 def ifft(src, opts={}):
@@ -33,7 +33,7 @@ def ifft(src, opts={}):
         problem = DftProblem(src.size, SW_INVERSE)
         solver = DftSolver(problem)
         _solver_cache[ckey] = solver
-    result = solver.solve(complexify1(src))
+    result = solver.solve(src)
     return result
 
 def fftn(src, opts={}):
@@ -44,11 +44,7 @@ def fftn(src, opts={}):
         problem = MddftProblem(list(src.shape), SW_FORWARD)
         solver = MddftSolver(problem, opts)
         _solver_cache[ckey] = solver
-    # start_time = time.time()
-    result = solver.solve(complexify1(src))
-    # end_time = time.time()
-    # solve_time = end_time - start_time
-    # print(f"SOLVE fftn on {src.shape}: {solve_time}")
+    result = solver.solve(src)
     return result
 
 def ifftn(src, opts={}):
@@ -59,9 +55,5 @@ def ifftn(src, opts={}):
         problem = MddftProblem(list(src.shape), SW_INVERSE)
         solver = MddftSolver(problem, opts)
         _solver_cache[ckey] = solver
-    # start_time = time.time()
-    result = solver.solve(complexify1(src))
-    # end_time = time.time()
-    # solve_time = end_time - start_time
-    # print(f"SOLVE ifftn on {src.shape}: {solve_time}")
+    result = solver.solve(src)
     return result
