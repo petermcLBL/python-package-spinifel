@@ -22,9 +22,12 @@ _solver_cache = {}
 
 def stepphase(src, amplitudes):
     global _solver_cache
+    platform = SW_CPU
+    if sw.get_array_module(src) == cp:
+        platform = SW_HIP if sw.has_ROCm() else SW_CUDA
+    opts = { SW_OPT_PLATFORM : platform }
     N = list(src.shape)[1]
     t = 'd'
-    opts = {SW_OPT_CUDA : True}
     if src.dtype.name == 'float32':
         opts[SW_OPT_REALCTYPE] = 'float'
         t = 's'
