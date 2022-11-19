@@ -63,3 +63,18 @@ def print_array_info(p, array_in, textstr):
           ' C=' + str(array_in.flags.c_contiguous) +
           ' CuPy=' + str(is_cupy))
     return
+
+
+def avg_low(times, ignored, ratio, textstr):
+    arrlen = np.size(times)
+    tavg = np.average(times[ignored:arrlen])
+    tot = 0
+    count = 0
+    for i in range(times.size):
+        if (times[i] > ratio * tavg):
+            if (len(textstr) > 0):
+                print(f'{textstr}[{i}] = {times[i]}')
+        elif (i >= ignored):
+            tot += times[i]
+            count += 1
+    return (tot / count)
