@@ -115,9 +115,10 @@ print(f'without outliers, average {tavg_spinifel_low}')
 print('')
 
 print(f'Timing FFTX mdrconv over {itns} itns, ignoring first {ignored}')
+fftx_result = None
 for i in range(itns):
     ts = time.perf_counter()
-    fftx_result = fftx.convo.mdrconv(src, testSymCube)
+    fftx_result = fftx.convo.mdrconv(src, testSymCube, fftx_result)
     tf = time.perf_counter()
     times_fftx[i] = tf - ts
 

@@ -125,12 +125,13 @@ print(f'without outliers, average {pytm_low}')
 print('')
 
 print(f'Timing FFTX over {itns} itns, ignoring first {ignored}')
+resC = None
 for i in range(itns):
     ts = time.perf_counter()
     if FORWARD:
-        resC = fftx.fft.rfftn(src)
+        resC = fftx.fft.rfftn(src, resC)
     else:
-        resC = fftx.fft.irfftn(src, dims)
+        resC = fftx.fft.irfftn(src, dims, resC)
     tf = time.perf_counter()
     times_fftx[i] = tf - ts
 
