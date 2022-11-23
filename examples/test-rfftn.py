@@ -97,10 +97,8 @@ else:
     pymod = 'NumPy'
 
 if FORWARD:
-    pyfunc = xp.fft.rfftn
     funcname = 'rfftn'
 else:
-    pyfunc = xp.fft.irfftn
     funcname = 'irfftn'
 
 print('**** Timing ' + funcname + ' on ' + dev + ', data type: ' + src.dtype.name + ', dims: ' + str(dims) + ' ****')
@@ -110,7 +108,10 @@ print('')
 print(f'Timing {pymod} over {itns} itns, ignoring first {ignored}')
 for i in range(itns):
     ts = time.perf_counter()
-    resPy = pyfunc(src)
+    if FORWARD:
+        resPy = xp.fft.rfftn(src)
+    else:
+        resPy = xp.fft.irfftn(src, dims)
     tf = time.perf_counter()
     times_python[i] = tf - ts
 
