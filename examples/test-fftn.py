@@ -69,7 +69,7 @@ else:
 times_python = np.zeros(itns)
 times_fftx = np.zeros(itns)
 
-src = np.zeros(dims, dtype=np.complex128)
+src = np.zeros(dims, cxtype)
 for k in range (np.size(src)):
     vr = np.random.random()
     vi = np.random.random()
