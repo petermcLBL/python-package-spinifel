@@ -130,7 +130,7 @@ print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max( xp.absolute( spinifel_result - fftx_result ) )
-print ('Relative diff between spinifel and FFTX kernels =  ' + str(max_diff/max_spinifel) )
+print ('Relative diff between spinifel and FFTX kernels: ' + str(max_diff/max_spinifel) )
 print('Speedup (average after ignored) from Spinifel to FFTX: ' + f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
 print('Speedup (average without outliers) from Spinifel to FFTX: ' + f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
 print('')
