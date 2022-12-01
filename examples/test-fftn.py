@@ -69,6 +69,11 @@ else:
 times_python = np.zeros(itns)
 times_fftx = np.zeros(itns)
 
+if forGPU:
+    start_gpu = cp.cuda.Event()
+    end_gpu = cp.cuda.Event()
+
+
 src = np.zeros(dims, cxtype)
 for k in range (np.size(src)):
     vr = np.random.random()
@@ -102,9 +107,16 @@ print('')
 print(f'Timing {pymod} over {itns} itns, ignoring first {ignored}')
 for i in range(itns):
     ts = time.perf_counter()
+    if forGPU:
+        start_gpu.record()
     resPy = pyfunc(src)
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
     tf = time.perf_counter()
-    times_python[i] = tf - ts
+    times_python[i] = t_gpu if (forGPU) else tf - ts
 
 # print(f'average {((tf - ts)/(itns*1.0)):0.6f}')
 ### print(np.array2string(times_python, separator=","))
@@ -120,9 +132,16 @@ print(f'Timing FFTX over {itns} itns, ignoring first {ignored}')
 resC = None
 for i in range(itns):
     ts = time.perf_counter()
+    if forGPU:
+        start_gpu.record()
     resC  = fftxfunc(src, resC)
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
     tf = time.perf_counter()
-    times_fftx[i] = tf - ts
+    times_fftx[i] = t_gpu if (forGPU) else tf - ts
 
 # print(f'average {((tf - ts)/(itns*1.0)):0.6f}')
 ### print(np.array2string(times_fftx, separator=","))
@@ -136,7 +155,10 @@ print('')
 
 diffCP = xp.max( xp.absolute( resPy - resC ) )
 maxCP = xp.max(xp.absolute(resPy))
-print('Relative diff between ' + pymod + ' and FFTX transforms: ' + str(diffCP/maxCP))
-print('Speedup (average after ignored) from ' + pymod + ' to FFTX: ' + f'{(pytm / fftxtm):0.2f}' + 'x')
-print('Speedup (average without outliers) from ' + pymod + ' to FFTX: ' + f'{(pytm_low / fftxtm_low):0.2f}' + 'x')
+print('Relative diff between ' + pymod + ' and FFTX transforms: ' +
+      str(diffCP/maxCP))
+print('Speedup (average after ignored) from ' + pymod + ' to FFTX: ' +
+      f'{(pytm / fftxtm):0.2f}' + 'x')
+print('Speedup (average without outliers) from ' + pymod + ' to FFTX: ' +
+      f'{(pytm_low / fftxtm_low):0.2f}' + 'x')
 print('')

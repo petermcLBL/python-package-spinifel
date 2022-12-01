@@ -9,6 +9,9 @@ import time
 import fftx
 import sys
 
+import snowwhite as sw
+from snowwhite.stepphasesolver import *
+
 src_type = np.double
 # 15 is OK, but 16 has FFTX being much slower.
 itns = 20
@@ -80,12 +83,18 @@ amps_full = xp.absolute(xp.fft.fftn(src))**3
 times_spinifel = np.zeros(itns)
 times_fftx = np.zeros(itns)
 
+if forGPU:
+    start_gpu = cp.cuda.Event()
+    end_gpu = cp.cuda.Event()
+
 print('**** Timing phasing kernels on ' + dev + ', data type: ' + src.dtype.name + ', dims: ' + str(dims) + ' ****')
 print('')
     
 print(f'Timing Spinifel phasing kernel over {itns} itns, ignoring first {ignored}')
 for i in range(itns):
     ts = time.perf_counter()
+    if forGPU:
+        start_gpu.record()
     #original spinifel calculation
     rho_hat = xp.fft.fftn(src)
     phases = xp.angle(rho_hat)
@@ -93,8 +102,13 @@ for i in range(itns):
     amp_mask[0, 0, 0] = 0
     rho_hat_mod = xp.where(amp_mask, amps_full*xp.exp(1j*phases), rho_hat)
     spinifel_result = xp.fft.ifftn(rho_hat_mod).real
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
     tf = time.perf_counter()
-    times_spinifel[i] = tf - ts
+    times_spinifel[i] = t_gpu if (forGPU) else tf - ts
 
 tavg_spinifel = np.average(times_spinifel[ignored:itns])
 print(f'average {tavg_spinifel}')
@@ -102,13 +116,29 @@ tavg_spinifel_low = fftx.utils.avg_low(times_spinifel, ignored, 2., 'times_spini
 print(f'without outliers, average {tavg_spinifel_low}')
 print('')
 
+platform = SW_HIP if sw.has_ROCm() else SW_CUDA
+opts = { SW_OPT_REALCTYPE : src_type, SW_OPT_PLATFORM : platform }
+
+p1 = StepPhaseProblem(N)
+s1 = StepPhaseSolver(p1, opts)
+
+func = lambda s, a, d : s1.solve(s, a, d)
+
+
 print(f'Timing FFTX step_phase over {itns} itns, ignoring first {ignored}')
 fftx_result = None
 for i in range(itns):
     ts = time.perf_counter()
-    fftx_result = fftx.convo.stepphase(src, amplitudes, fftx_result)
+    if forGPU:
+        start_gpu.record()
+    fftx_result = func(src, amplitudes, fftx_result)
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
     tf = time.perf_counter()
-    times_fftx[i] = tf - ts
+    times_fftx[i] = t_gpu if (forGPU) else tf - ts
 
 tavg_fftx = np.average(times_fftx[ignored:itns])
 print(f'average {tavg_fftx}')
@@ -118,7 +148,10 @@ print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max( xp.absolute( spinifel_result - fftx_result ) )
-print ('Relative diff between spinifel and FFTX kernels: ' + str(max_diff/max_spinifel) )
-print('Speedup (average after ignored) from Spinifel to FFTX: ' + f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
-print('Speedup (average without outliers) from Spinifel to FFTX: ' + f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
+print ('Relative diff between spinifel and FFTX kernels: ' +
+       str(max_diff/max_spinifel) )
+print('Speedup (average after ignored) from Spinifel to FFTX: ' +
+      f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
+print('Speedup (average without outliers) from Spinifel to FFTX: ' +
+      f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
 print('')
