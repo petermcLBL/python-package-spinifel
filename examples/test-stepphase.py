@@ -13,7 +13,8 @@ import snowwhite as sw
 from snowwhite.stepphasesolver import *
 
 src_type = np.double
-# 15 is OK, but 16 has FFTX being much slower.
+c_type = 'double'
+
 itns = 20
 ignored = 5
 
@@ -46,6 +47,7 @@ npar += 1
 if len(sys.argv) > npar:
     if sys.argv[npar] == "s":
         src_type = np.single
+        c_type = 'float'
 
 npar += 1
 if len ( sys.argv ) > npar:
@@ -117,7 +119,7 @@ print(f'without outliers, average {tavg_spinifel_low}')
 print('')
 
 platform = SW_HIP if sw.has_ROCm() else SW_CUDA
-opts = { SW_OPT_REALCTYPE : src_type, SW_OPT_PLATFORM : platform }
+opts = { SW_OPT_REALCTYPE : c_type, SW_OPT_PLATFORM : platform }
 
 p1 = StepPhaseProblem(N)
 s1 = StepPhaseSolver(p1, opts)
