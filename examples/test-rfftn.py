@@ -85,6 +85,8 @@ else:
         vr = np.random.random()
         vi = np.random.random()
         src.itemset(k,vr + vi * 1j)
+    # Input to complex-to-real transform must have Hermitian symmetry.
+    fftx.utils.symmetrize3d(np, src, dims)
 
 if forGPU:
     xp = cp
