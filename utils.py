@@ -78,3 +78,32 @@ def avg_low(times, ignored, ratio, textstr):
             tot += times[i]
             count += 1
     return (tot / count)
+
+
+def symmetrize3d(p, src, dims):
+    N0 = dims[0]
+    N1 = dims[1]
+    N2 = dims[2]
+    sh = src.shape
+    step0 = N0 if (p.mod(N0, 2) == 1) else N0 // 2
+    hi0   = (N0 + 2) // 2
+    lo0   = (N0 - 1) // 2 if (hi0 < sh[0]) else 0
+    step1 = N1 if (p.mod(N1, 2) == 1) else N1 // 2
+    hi1   = (N1 + 2) // 2
+    lo1   = (N1 - 1) // 2 if (hi1 < sh[1]) else 0
+    step2 = N2 if (p.mod(N2, 2) == 1) else N2 // 2
+    hi2   = (N2 + 2) // 2
+    lo2   = (N2 - 1) // 2 if (hi2 < sh[2]) else 0
+    # 0-dimensional points
+    src[::step0, ::step1, ::step2] = p.real(src[::step0, ::step1, ::step2])
+    # 1-dimensional lines
+    src[::step0, ::step1, hi2:] = p.conj(src[::step0, ::step1, lo2:0:-1]);
+    src[::step0, hi1:, ::step2] = p.conj(src[::step0, lo1:0:-1, ::step2]);
+    src[hi0:, ::step1, ::step2] = p.conj(src[lo0:0:-1, ::step1, ::step2]);
+    # 2-dimensional planes
+    src[::step0, 1:, hi2:] = p.conj(src[::step0, N1:0:-1, lo2:0:-1]);
+    src[1:, ::step1, hi2:] = p.conj(src[N0:0:-1, ::step1, lo2:0:-1]);
+    src[1:, hi1:, ::step2] = p.conj(src[N0:0:-1, lo1:0:-1, ::step2]);
+    # 3-dimensional space
+    src[1:, 1:, hi2:] =      p.conj(src[N0:0:-1, N1:0:-1, lo2:0:-1]);
+    return
