@@ -83,9 +83,7 @@ else:
 testSymCube = xp.fft.fftn(sym)
 
 #set amplitudes to a function of |fft(src)|
-print('amplitudes')
 amplitudes = xp.absolute(xp.fft.rfftn(src))**3
-print('amps_full')
 amps_full = xp.absolute(xp.fft.fftn(src))**3
 
 times_spinifel = np.zeros(itns)
