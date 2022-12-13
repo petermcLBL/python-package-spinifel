@@ -1,0 +1,9 @@
+#/bin/bash
+# source run-kernel-tests-CPU.sh > run-kernel-tests-CPU.out
+for sz in $(cat oddsizes.txt)
+do
+   python test-mdrconv.py $sz 105 5 d CPU
+   python test-mdrconv.py $sz 105 5 s CPU
+   python test-stepphase.py $sz 105 5 d CPU
+   python test-stepphase.py $sz 105 5 s CPU
+done
