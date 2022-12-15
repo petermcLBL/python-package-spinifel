@@ -104,12 +104,17 @@ print('**** Timing ' + funcname + ' on ' + dev + ', data type: ' + src.dtype.nam
 print('')
     
 
+got_Py = True
 print(f'Timing {pymod} over {itns} itns, ignoring first {ignored}')
 for i in range(itns):
     ts = time.perf_counter()
     if forGPU:
         start_gpu.record()
-    resPy = pyfunc(src)
+    try:
+        resPy = pyfunc(src)
+    except RuntimeError:
+        got_Py = False
+        break
     if forGPU:
         end_gpu.record()
         end_gpu.synchronize()
@@ -120,21 +125,29 @@ for i in range(itns):
 
 # print(f'average {((tf - ts)/(itns*1.0)):0.6f}')
 ### print(np.array2string(times_python, separator=","))
-print(f'average {np.average(times_python[ignored:itns])}')
-
-# pytm = tf-ts
-pytm = np.average(times_python[ignored:itns])
-pytm_low = fftx.utils.avg_low(times_python, ignored, 2., 'times_python')
-print(f'without outliers, average {pytm_low}')
+if got_Py:
+    print(f'average {np.average(times_python[ignored:itns])}')
+    # pytm = tf-ts
+    pytm = np.average(times_python[ignored:itns])
+    pytm_low = fftx.utils.avg_low(times_python, ignored, 2., 'times_python')
+    print(f'without outliers, average {pytm_low}')
+else:
+    print('average NaN')
+    print('without outliers, average NaN')
 print('')
 
 print(f'Timing FFTX over {itns} itns, ignoring first {ignored}')
+got_FFTX = True
 resC = None
 for i in range(itns):
     ts = time.perf_counter()
     if forGPU:
         start_gpu.record()
-    resC  = fftxfunc(src, resC)
+    try:
+        resC  = fftxfunc(src, resC)
+    except RuntimeError:
+        got_FFTX = False
+        break
     if forGPU:
         end_gpu.record()
         end_gpu.synchronize()
@@ -145,20 +158,31 @@ for i in range(itns):
 
 # print(f'average {((tf - ts)/(itns*1.0)):0.6f}')
 ### print(np.array2string(times_fftx, separator=","))
-print(f'average {np.average(times_fftx[ignored:itns])}')
-
-# fftxtm = tf-ts
-fftxtm = np.average(times_fftx[ignored:itns])
-fftxtm_low = fftx.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
-print(f'without outliers, average {fftxtm_low}')
+if got_FFTX:
+    print(f'average {np.average(times_fftx[ignored:itns])}')
+    # fftxtm = tf-ts
+    fftxtm = np.average(times_fftx[ignored:itns])
+    fftxtm_low = fftx.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
+    print(f'without outliers, average {fftxtm_low}')
+else:
+    print('average NaN')
+    print('without outliers, average NaN')
 print('')
 
-diffCP = xp.max( xp.absolute( resPy - resC ) )
-maxCP = xp.max(xp.absolute(resPy))
-print('Relative diff between ' + pymod + ' and FFTX transforms: ' +
-      str(diffCP/maxCP))
-print('Speedup (average after ignored) from ' + pymod + ' to FFTX: ' +
-      f'{(pytm / fftxtm):0.2f}' + 'x')
-print('Speedup (average without outliers) from ' + pymod + ' to FFTX: ' +
-      f'{(pytm_low / fftxtm_low):0.2f}' + 'x')
+if (got_FFTX & got_Py):
+    diffCP = xp.max( xp.absolute( resPy - resC ) )
+    maxCP = xp.max(xp.absolute(resPy))
+    print('Relative diff between ' + pymod + ' and FFTX transforms: ' +
+          str(diffCP/maxCP))
+    print('Speedup (average after ignored) from ' + pymod + ' to FFTX: ' +
+          f'{(pytm / fftxtm):0.2f}' + 'x')
+    print('Speedup (average without outliers) from ' + pymod + ' to FFTX: ' +
+          f'{(pytm_low / fftxtm_low):0.2f}' + 'x')
+else:
+    # These lines make it easier for a script to parse output.
+    status_Py = pymod + (" succeeded" if (got_Py) else " failed")
+    status_FFTX = "FFTX" + (" succeeded" if (got_FFTX) else " failed")
+    print('Relative diff ' + status_Py + ' and ' + status_FFTX + ': NaN')
+    print('Speedup (average after ignored) from ' + pymod + ' to FFTX: NaNx')
+    print('Speedup (average without outliers) from ' + pymod + ' to FFTX: NaNx')
 print('')
