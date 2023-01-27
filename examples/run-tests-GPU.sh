@@ -13,8 +13,8 @@ do
 done
 for sz in $(cat oddsizes.txt)
 do
-   python test-mdrconv.py $sz 105 5 d GPU
-   python test-mdrconv.py $sz 105 5 s GPU
+   python test-mdrfsconv.py $sz 105 5 d GPU
+   python test-mdrfsconv.py $sz 105 5 s GPU
    python test-stepphase.py $sz 105 5 d GPU
    python test-stepphase.py $sz 105 5 s GPU
 done
