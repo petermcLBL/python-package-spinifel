@@ -1,4 +1,13 @@
 #! python
+"""
+usage: run-mdrfsconv N [ d|s [ GPU|CPU ]]
+  N = cube size
+  d  = double, s = single precision   (default: double precision)
+                                    
+  (GPU is default target unless none exists or no CuPy)                     
+                                    
+Three-dimensional real free-space convolution
+"""
 
 import sys
 import numpy as np
@@ -8,10 +17,12 @@ except ModuleNotFoundError:
     cp = None
 import fftx
 
+if (len(sys.argv) < 2) or (sys.argv[1] == "?"):
+    print(__doc__.strip())
+    sys.exit()
+
 #Cube Size
-n = 32
-if len(sys.argv) > 1:
-    n = int ( sys.argv[1] )
+n = int ( sys.argv[1] )
 
 src_type = np.double
 if len(sys.argv) > 2:
@@ -33,9 +44,9 @@ symIn = xp.random.rand(n*2,n*2,n*2).astype(src_type)
 testSymHalf = xp.fft.rfftn(symIn)
 testSymCube = xp.fft.fftn(symIn)
 
-result1 = fftx.convo.mdrconv(testSrc, testSymHalf)
+result1 = fftx.convo.mdrfsconv(testSrc, testSymHalf)
 # API converts full cube to half cube
-result2 = fftx.convo.mdrconv(testSrc, testSymCube)
+result2 = fftx.convo.mdrfsconv(testSrc, testSymCube)
 
 diff = xp.max(xp.absolute(result1 - result2))
 
