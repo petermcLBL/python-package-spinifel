@@ -70,7 +70,7 @@ def stepphase(src, amplitudes, dst=None):
     global _solver_cache
     platform = SW_CPU
     xp = sw.get_array_module(src)
-    if cp == cp:
+    if xp == cp:
         platform = SW_HIP if sw.has_ROCm() else SW_CUDA
     opts = { SW_OPT_PLATFORM : platform }
     N = list(src.shape)[1]
