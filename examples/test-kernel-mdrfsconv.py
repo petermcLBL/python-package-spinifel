@@ -1,5 +1,12 @@
 #! python
 
+# Usage:
+# python test-kernel-mdrfsconv.py [N] [d|s] [GPU|CPU]
+# N: size, default 81
+# d|s: double (default) or single precision
+# GPU|CPU: run on GPU (default) or on CPU
+#
+
 import sys
 import numpy as np
 try:
@@ -9,7 +16,7 @@ except ModuleNotFoundError:
 import fftx
 
 if (len(sys.argv) < 2) or (sys.argv[1] == "?"):
-    print("python test-mdrfsconv-mine.py sz [ d|s  [ GPU|CPU ]]")
+    print("python test-kernel-mdrfsconv-mine.py sz [ d|s  [ GPU|CPU ]]")
     print("  sz = N")
     print("  d = double (default), s = single precision")
     sys.exit()
@@ -42,7 +49,7 @@ dimsDoubleTuple = tuple(dimsDouble)
 
 #build test input in numpy (cupy does not have itemset)
 src = np.ones(dimsTuple, dtype=src_type)
-for  k in range (np.size(src)):
+for k in range (np.size(src)):
     src.itemset(k, np.random.random()*10.0)
 
 sym = np.zeros(dimsDoubleTuple, dtype=src_type)
@@ -52,22 +59,23 @@ for k in range (np.size(sym)):
 xp = np
 if forGPU:
     xp = cp
-    #convert from NumPy to CuPy array
+    #convert src and sym from NumPy to CuPy arrays
     src = cp.asarray(src)
     sym = cp.asarray(sym)
 
 testSymCube = xp.fft.fftn(sym)
 
-fftx_result = fftx.convo.mdrfsconv(src, testSymCube)
-
 #original spinifel calculation
-ugrid_ups = xp.zeros((2*N,)*3, dtype=src.dtype)
-ugrid_ups[:N, :N, :N] = src
-F_ugrid_ups = xp.fft.fftn(xp.fft.ifftshift(ugrid_ups))
-F_ugrid_conv_out_ups = F_ugrid_ups * testSymCube
-ugrid_conv_out_ups = xp.fft.fftshift(xp.fft.ifftn(F_ugrid_conv_out_ups))
-ugrid_conv_out = ugrid_conv_out_ups[:N, :N, :N]
-spinifel_result = ugrid_conv_out
+def orig_kernel_mdrfsconv(xp, src):
+    ugrid_ups = xp.zeros((2*N,)*3, dtype=src.dtype)
+    ugrid_ups[:N, :N, :N] = src
+    F_ugrid_ups = xp.fft.fftn(xp.fft.ifftshift(ugrid_ups))
+    F_ugrid_conv_out_ups = F_ugrid_ups * testSymCube
+    ugrid_conv_out_ups = xp.fft.fftshift(xp.fft.ifftn(F_ugrid_conv_out_ups))
+    return ugrid_conv_out_ups[:N, :N, :N]
+
+fftx_result = fftx.convo.mdrfsconv(src, testSymCube)
+spinifel_result = orig_kernel_mdrfsconv(xp, src)
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max(xp.absolute(spinifel_result - fftx_result))

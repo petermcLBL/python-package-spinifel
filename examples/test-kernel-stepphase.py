@@ -1,9 +1,9 @@
 #! python
 
 # Usage:
-# python test-stepphase.py [N] [d|f] [GPU|CPU]
+# python test-kernel-stepphase.py [N] [d|s] [GPU|CPU]
 # N: size, default 81
-# d|f: double (default) or float
+# d|s: double (default) or single precision
 # GPU|CPU: run on GPU (default) or on CPU
 # 
 
@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 import fftx
 
 if (len(sys.argv) < 2) or (sys.argv[1] == "?"):
-    print("python test-stepphase-mine.py sz [ d|s  [ GPU|CPU ]]")
+    print("python test-kernel-stepphase.py sz [ d|s  [ GPU|CPU ]]")
     print("  sz = N")
     print("  d = double (default), s = single precision")
     sys.exit()
@@ -45,30 +45,32 @@ print('Phasing kernel size ' + str(N) + ' ' + str(src_type) + ' on ' + strPU)
 dims = [N, N, N]
 dimsTuple = tuple(dims)
 
+#original spinifel calculation
+def orig_kernel_stepphase(xp, src):
+    amps_full = xp.absolute(xp.fft.fftn(src))**3
+    rho_hat = xp.fft.fftn(src)
+    phases = xp.angle(rho_hat)
+    amp_mask = xp.ones(dims, dtype=xp.bool_)
+    amp_mask[0, 0, 0] = 0
+    rho_hat_mod = xp.where(amp_mask, amps_full*xp.exp(1j*phases), rho_hat)
+    return xp.fft.ifftn(rho_hat_mod).real
+
 #build test input in numpy (cupy does not have itemset)
 src = np.ones(dimsTuple, dtype=src_type)
-for  k in range (np.size(src)):
+for k in range (np.size(src)):
     src.itemset(k, np.random.random()*10.0)
 
 xp = np
 if forGPU:
     xp = cp
-    #convert src to CuPy array
+    #convert src from NumPy to CuPy array
     src = cp.asarray(src)
 
 #set amplitudes to a function of |fft(src)|
 amplitudes = xp.absolute(xp.fft.rfftn(src))**3
-amps_full = xp.absolute(xp.fft.fftn(src))**3
 
 fftx_result = fftx.convo.stepphase(src, amplitudes)
-
-#original spinifel calculation
-rho_hat = xp.fft.fftn(src)
-phases = xp.angle(rho_hat)
-amp_mask = xp.ones(dims, dtype=xp.bool_)
-amp_mask[0, 0, 0] = 0
-rho_hat_mod = xp.where(amp_mask, amps_full*xp.exp(1j*phases), rho_hat)
-spinifel_result = xp.fft.ifftn(rho_hat_mod).real
+spinifel_result = orig_kernel_stepphase(xp, src)
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max(xp.absolute(spinifel_result - fftx_result))
