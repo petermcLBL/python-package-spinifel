@@ -1,5 +1,5 @@
-Python Package for FFTX
-=======================
+Python Package for SpiniFEL
+===========================
 
 This Python package provides NumPy/CuPy-compatible access to the high performance multi-platform 
 code generation capabilities of the [FFTX Project](https://github.com/spiral-software/fftx), 
