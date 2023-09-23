@@ -90,7 +90,8 @@ def orig_kernel_mdrfsconv(xp, src):
     F_ugrid_ups = xp.fft.fftn(xp.fft.ifftshift(ugrid_ups))
     F_ugrid_conv_out_ups = F_ugrid_ups * testSymCube
     ugrid_conv_out_ups = xp.fft.fftshift(xp.fft.ifftn(F_ugrid_conv_out_ups))
-    return ugrid_conv_out_ups[:N, :N, :N]
+    ugrid_conv_out = ugrid_conv_out_ups[:N, :N, :N]
+    return ugrid_conv_out
 
 #set amplitudes to a function of |fft(src)|
 amplitudes = xp.absolute(xp.fft.rfftn(src))**3
@@ -105,39 +106,27 @@ print('')
 fftx_result = None
 for i in range(itns):
     # original spinifel calculation
-    ts = time.perf_counter()
-    if forGPU:
-        start_gpu.record()
+    ts = time.time()
     spinifel_result = orig_kernel_mdrfsconv(xp, src)
-    if forGPU:
-        end_gpu.record()
-        end_gpu.synchronize()
-        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
-        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
-    tf = time.perf_counter()
-    times_spinifel[i] = t_gpu if (forGPU) else tf - ts
+    tf = time.time()
+    times_spinifel[i] = tf - ts
     # FFTX calculation
-    ts = time.perf_counter()
-    if forGPU:
-        start_gpu.record()
+    ts = time.time()
     fftx_result = fftx.convo.mdrfsconv(src, testSymCube, fftx_result)
-    if forGPU:
-        end_gpu.record()
-        end_gpu.synchronize()
-        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
-        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
-    tf = time.perf_counter()
-    times_fftx[i] = t_gpu if (forGPU) else tf - ts
+    tf = time.time()
+    times_fftx[i] = tf - ts
 
 print(f'Timing kernels over {itns} itns, ignoring first {ignored}, in seconds:')
 tavg_spinifel = np.average(times_spinifel[ignored:itns])
 print(f'SpiniFEL average {tavg_spinifel}')
 tavg_fftx = np.average(times_fftx[ignored:itns])
 print(f'FFTX average {tavg_fftx}')
+print('Speedup (average after ignored) from Spinifel to FFTX: ' +
+      f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
 print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max( xp.absolute( spinifel_result - fftx_result ) )
-print ('Relative diff between spinifel and FFTX kernels: ' + str(max_diff/max_spinifel) )
-print('Speedup (average after ignored) from Spinifel to FFTX: ' + f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
+print ('Relative diff between spinifel and FFTX kernels: ' +
+       str(max_diff/max_spinifel) )
 print('')
