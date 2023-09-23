@@ -10,7 +10,6 @@ import fftx
 import sys
 
 src_type = np.double
-# 15 is OK, but 16 has FFTX being much slower.
 itns = 20
 ignored = 5
 
@@ -82,6 +81,15 @@ else:
 
 testSymCube = xp.fft.fftn(sym)
 
+#original spinifel calculation
+def orig_kernel_mdrfsconv(xp, src):
+    ugrid_ups = xp.zeros((2*N,)*3, dtype=src.dtype)
+    ugrid_ups[:N, :N, :N] = src
+    F_ugrid_ups = xp.fft.fftn(xp.fft.ifftshift(ugrid_ups))
+    F_ugrid_conv_out_ups = F_ugrid_ups * testSymCube
+    ugrid_conv_out_ups = xp.fft.fftshift(xp.fft.ifftn(F_ugrid_conv_out_ups))
+    return ugrid_conv_out_ups[:N, :N, :N]
+
 #set amplitudes to a function of |fft(src)|
 amplitudes = xp.absolute(xp.fft.rfftn(src))**3
 amps_full = xp.absolute(xp.fft.fftn(src))**3
@@ -96,20 +104,14 @@ print(f'Timing Spinifel convolution kernel over {itns} itns, ignoring first {ign
 for i in range(itns):
     ts = time.perf_counter()
     #original spinifel calculation
-    ugrid_ups = xp.zeros((2*N,)*3, dtype=src.dtype)
-    ugrid_ups[:N, :N, :N] = src
-    F_ugrid_ups = xp.fft.fftn(xp.fft.ifftshift(ugrid_ups))
-    F_ugrid_conv_out_ups = F_ugrid_ups * testSymCube
-    ugrid_conv_out_ups = xp.fft.fftshift(xp.fft.ifftn(F_ugrid_conv_out_ups))
-    ugrid_conv_out = ugrid_conv_out_ups[:N, :N, :N]
-    spinifel_result = ugrid_conv_out
+    spinifel_result = orig_kernel_mdrfsconv(xp, src)
     tf = time.perf_counter()
     times_spinifel[i] = tf - ts
 
 tavg_spinifel = np.average(times_spinifel[ignored:itns])
 print(f'average {tavg_spinifel}')
-tavg_spinifel_low = fftx.utils.avg_low(times_spinifel, ignored, 2., 'times_spinifel')
-print(f'without outliers, average {tavg_spinifel_low}')
+# tavg_spinifel_low = fftxs.utils.avg_low(times_spinifel, ignored, 2., 'times_spinifel')
+# print(f'without outliers, average {tavg_spinifel_low}')
 print('')
 
 print(f'Timing FFTX mdrfsconv over {itns} itns, ignoring first {ignored}')
@@ -122,13 +124,13 @@ for i in range(itns):
 
 tavg_fftx = np.average(times_fftx[ignored:itns])
 print(f'average {tavg_fftx}')
-tavg_fftx_low = fftx.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
-print(f'without outliers, average {tavg_fftx_low}')
+# tavg_fftx_low = fftxs.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
+# print(f'without outliers, average {tavg_fftx_low}')
 print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max( xp.absolute( spinifel_result - fftx_result ) )
 print ('Relative diff between spinifel and FFTX kernels: ' + str(max_diff/max_spinifel) )
 print('Speedup (average after ignored) from Spinifel to FFTX: ' + f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
-print('Speedup (average without outliers) from Spinifel to FFTX: ' + f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
+# print('Speedup (average without outliers) from Spinifel to FFTX: ' + f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
 print('')

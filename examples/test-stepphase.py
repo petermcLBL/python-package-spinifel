@@ -62,6 +62,15 @@ else:
     forGPU = False 
     xp = np       
 
+#original spinifel calculation
+def orig_kernel_stepphase(xp, src):
+    amps_full = xp.absolute(xp.fft.fftn(src))**3
+    rho_hat = xp.fft.fftn(src)
+    phases = xp.angle(rho_hat)
+    amp_mask = xp.ones(dims, dtype=xp.bool_)
+    amp_mask[0, 0, 0] = 0
+    rho_hat_mod = xp.where(amp_mask, amps_full*xp.exp(1j*phases), rho_hat)
+    return xp.fft.ifftn(rho_hat_mod).real
 
 #build test input in numpy (cupy does not have itemset)
 src = np.ones(dimsTuple, dtype=src_type)
@@ -98,12 +107,7 @@ for i in range(itns):
     if forGPU:
         start_gpu.record()
     #original spinifel calculation
-    rho_hat = xp.fft.fftn(src)
-    phases = xp.angle(rho_hat)
-    amp_mask = xp.ones(dims, dtype=xp.bool_)
-    amp_mask[0, 0, 0] = 0
-    rho_hat_mod = xp.where(amp_mask, amps_full*xp.exp(1j*phases), rho_hat)
-    spinifel_result = xp.fft.ifftn(rho_hat_mod).real
+    spinifel_result = orig_kernel_stepphase(xp, src)
     if forGPU:
         end_gpu.record()
         end_gpu.synchronize()
@@ -114,8 +118,8 @@ for i in range(itns):
 
 tavg_spinifel = np.average(times_spinifel[ignored:itns])
 print(f'average {tavg_spinifel}')
-tavg_spinifel_low = fftx.utils.avg_low(times_spinifel, ignored, 2., 'times_spinifel')
-print(f'without outliers, average {tavg_spinifel_low}')
+# tavg_spinifel_low = fftx.utils.avg_low(times_spinifel, ignored, 2., 'times_spinifel')
+# print(f'without outliers, average {tavg_spinifel_low}')
 print('')
 
 platform = SW_HIP if sw.has_ROCm() else SW_CUDA
@@ -144,8 +148,8 @@ for i in range(itns):
 
 tavg_fftx = np.average(times_fftx[ignored:itns])
 print(f'average {tavg_fftx}')
-tavg_fftx_low = fftx.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
-print(f'without outliers, average {tavg_fftx_low}')
+# tavg_fftx_low = fftx.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
+# print(f'without outliers, average {tavg_fftx_low}')
 print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
@@ -154,6 +158,6 @@ print ('Relative diff between spinifel and FFTX kernels: ' +
        str(max_diff/max_spinifel) )
 print('Speedup (average after ignored) from Spinifel to FFTX: ' +
       f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
-print('Speedup (average without outliers) from Spinifel to FFTX: ' +
-      f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
+# print('Speedup (average without outliers) from Spinifel to FFTX: ' +
+#       f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
 print('')
