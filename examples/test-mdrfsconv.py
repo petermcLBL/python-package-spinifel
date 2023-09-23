@@ -74,6 +74,8 @@ if forGPU:
     sym = cp.asarray(sym)
     dev = 'GPU'
     pymod = 'CuPy'
+    start_gpu = cp.cuda.Event()
+    end_gpu = cp.cuda.Event()
 else:
     xp = np
     dev = 'CPU'
@@ -100,37 +102,42 @@ times_fftx = np.zeros(itns)
 print('**** Timing free-space convolution kernels on ' + dev + ', data type: ' + src.dtype.name + ', dims: ' + str(dims) + ' ****')
 print('')
     
-print(f'Timing Spinifel convolution kernel over {itns} itns, ignoring first {ignored}')
-for i in range(itns):
-    ts = time.perf_counter()
-    #original spinifel calculation
-    spinifel_result = orig_kernel_mdrfsconv(xp, src)
-    tf = time.perf_counter()
-    times_spinifel[i] = tf - ts
-
-tavg_spinifel = np.average(times_spinifel[ignored:itns])
-print(f'average {tavg_spinifel}')
-# tavg_spinifel_low = fftxs.utils.avg_low(times_spinifel, ignored, 2., 'times_spinifel')
-# print(f'without outliers, average {tavg_spinifel_low}')
-print('')
-
-print(f'Timing FFTX mdrfsconv over {itns} itns, ignoring first {ignored}')
 fftx_result = None
 for i in range(itns):
+    # original spinifel calculation
     ts = time.perf_counter()
-    fftx_result = fftx.convo.mdrfsconv(src, testSymCube, fftx_result)
+    if forGPU:
+        start_gpu.record()
+    spinifel_result = orig_kernel_mdrfsconv(xp, src)
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
     tf = time.perf_counter()
-    times_fftx[i] = tf - ts
+    times_spinifel[i] = t_gpu if (forGPU) else tf - ts
+    # FFTX calculation
+    ts = time.perf_counter()
+    if forGPU:
+        start_gpu.record()
+    fftx_result = fftx.convo.mdrfsconv(src, testSymCube, fftx_result)
+    if forGPU:
+        end_gpu.record()
+        end_gpu.synchronize()
+        # cp.cuda.get_elapsed_time returns time in millisec; convert to sec.
+        t_gpu = cp.cuda.get_elapsed_time(start_gpu, end_gpu) * 0.001
+    tf = time.perf_counter()
+    times_fftx[i] = t_gpu if (forGPU) else tf - ts
 
+print(f'Timing kernels over {itns} itns, ignoring first {ignored}, in seconds:')
+tavg_spinifel = np.average(times_spinifel[ignored:itns])
+print(f'SpiniFEL average {tavg_spinifel}')
 tavg_fftx = np.average(times_fftx[ignored:itns])
-print(f'average {tavg_fftx}')
-# tavg_fftx_low = fftxs.utils.avg_low(times_fftx, ignored, 2., 'times_fftx')
-# print(f'without outliers, average {tavg_fftx_low}')
+print(f'FFTX average {tavg_fftx}')
 print('')
 
 max_spinifel = xp.max(xp.absolute(spinifel_result))
 max_diff = xp.max( xp.absolute( spinifel_result - fftx_result ) )
 print ('Relative diff between spinifel and FFTX kernels: ' + str(max_diff/max_spinifel) )
 print('Speedup (average after ignored) from Spinifel to FFTX: ' + f'{(tavg_spinifel / tavg_fftx):0.2f}' + 'x')
-# print('Speedup (average without outliers) from Spinifel to FFTX: ' + f'{(tavg_spinifel_low / tavg_fftx_low):0.2f}' + 'x')
 print('')
