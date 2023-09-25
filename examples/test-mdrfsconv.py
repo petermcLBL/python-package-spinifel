@@ -73,13 +73,9 @@ if forGPU:
     src = cp.asarray(src)
     sym = cp.asarray(sym)
     dev = 'GPU'
-    pymod = 'CuPy'
-    start_gpu = cp.cuda.Event()
-    end_gpu = cp.cuda.Event()
 else:
     xp = np
     dev = 'CPU'
-    pymod = 'NumPy'
 
 testSymCube = xp.fft.fftn(sym)
 
@@ -102,7 +98,7 @@ times_fftx = np.zeros(itns)
 
 print('**** Timing free-space convolution kernels on ' + dev + ', data type: ' + src.dtype.name + ', dims: ' + str(dims) + ' ****')
 print('')
-    
+
 fftx_result = None
 for i in range(itns):
     # original spinifel calculation

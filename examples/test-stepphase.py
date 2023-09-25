@@ -76,13 +76,9 @@ if forGPU:
     xp = cp
     src = cp.asarray(src)
     dev = 'GPU'
-    pymod = 'CuPy'
-    start_gpu = cp.cuda.Event()
-    end_gpu = cp.cuda.Event()
 else:
     xp = np
     dev = 'CPU'
-    pymod = 'NumPy'
 
 #set amplitudes to a function of |fft(src)|
 amplitudes = xp.absolute(xp.fft.rfftn(src))**3
@@ -93,7 +89,7 @@ times_fftx = np.zeros(itns)
 
 print('**** Timing phasing kernels on ' + dev + ', data type: ' + src.dtype.name + ', dims: ' + str(dims) + ' ****')
 print('')
-    
+
 fftx_result = None
 for i in range(itns):
     # original spinifel calculation
